@@ -14,6 +14,7 @@ type ToasterToast = {
   description?: React.ReactNode
   action?: React.ReactElement<typeof ToastAction>
   variant?: "default" | "destructive" | "success"
+  open?: boolean
 }
 
 const actionTypes = {
@@ -89,18 +90,24 @@ const reducer = (state: State, action: Action): State => {
   }
 }
 
-const ToastContext = React.createContext<{ toast: ({ ...props }: ToasterToast) => { id: string } } | undefined>(
-  undefined,
-)
+interface ToastContextType {
+  toast: (props: ToasterToast) => { id: string }
+}
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+const ToastContext = React.createContext<ToastContextType | undefined>(undefined)
+
+interface ToastProviderProps {
+  children: React.ReactNode
+}
+
+export function ToastProvider({ children }: ToastProviderProps) {
   const [state, dispatch] = React.useReducer(reducer, { toasts: [] })
   const { showFeedback } = useFeedback()
 
   const addToast = React.useCallback(
     (toast: ToasterToast) => {
       const id = genId()
-      const newToast = { ...toast, id }
+      const newToast = { ...toast, id, open: true }
       dispatch({ type: "ADD_TOAST", toast: newToast })
 
       // Map toast variants to feedback variants
@@ -122,14 +129,28 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         })
       }, 50)
 
-      return id
+      return { id }
     },
-    [showFeedback],
+    [showFeedback]
   )
 
-  const toast = React.useCallback(({ ...props }: ToasterToast) => addToast(props), [addToast])
+  const toast = React.useCallback(
+    (props: ToasterToast) => addToast(props),
+    [addToast]
+  )
 
-  return <ToastContext.Provider value={{ toast }}>{children}</ToastContext.Provider>
+  const contextValue = React.useMemo(
+    () => ({
+      toast,
+    }),
+    [toast]
+  )
+
+  return (
+    <ToastContext.Provider value={contextValue}>
+      {children}
+    </ToastContext.Provider>
+  )
 }
 
 export function useToast() {
