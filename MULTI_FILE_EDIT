@@ -1,0 +1,198 @@
+// app/layout.tsx
+import { FeedbackProvider } from "@/components/feedback/feedback-provider"
+import { Children } from "react"
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body className="bg-white dark:bg-gray-900">
+        <FeedbackProvider>
+          {children}
+        </FeedbackProvider>
+      </body>
+    </html>
+  )
+}
+
+// components/kokonutui/equipos-content.tsx
+import { useFeedback } from "@/components/feedback/feedback-provider"
+import { useState } from "react"
+
+export default function EquiposContent({ children }) {
+  const { showFeedback } = useFeedback()
+  const [equipos, setEquipos] = useState([])
+
+  const handleDelete = (displayId) => {
+    // Delete logic here
+    showFeedback({ title: "Éxito", description: `Equipo ${displayId} eliminado correctamente.`, variant: "success" })
+  }
+
+  const handleAddOrUpdateEquipo = (data) => {
+    if (!data.selectedEquipoType) {
+      showFeedback({ title: "Error de datos", description: "No se pudieron encontrar los datos seleccionados.", variant: "error" })
+      return
+    }
+
+    // Add or update logic here
+    if (data.id) {
+      showFeedback({ title: "Éxito", description: "Equipo actualizado correctamente.", variant: "success" })
+    } else {
+      showFeedback({ title: "Éxito", description: "Equipo agregado correctamente.", variant: "success" })
+    }
+  }
+
+  return (
+    <div>
+      {children}
+    </div>
+  )
+}
+
+// components/kokonutui/add-equipo-modal.tsx
+import { useFeedback } from "@/components/feedback/feedback-provider"
+import { useState } from "react"
+
+export default function AddEquipoModal({ children }) {
+  const { showFeedback } = useFeedback()
+  const [formData, setFormData] = useState({})
+
+  const handleSubmit = () => {
+    if (!formData.selectedEquipoType) {
+      showFeedback({ title: "Error", description: "Por favor, selecciona un tipo de equipo.", variant: "error" })
+      return
+    }
+
+    if (!formData.marca || !formData.modelo || !formData.noSerie) {
+      showFeedback({ title: "Error", description: "Por favor, completa Marca, Modelo y No. de Serie.", variant: "error" })
+      return
+    }
+
+    // Submit logic here
+  }
+
+  return (
+    <div>
+      {children}
+    </div>
+  )
+}
+
+// components/kokonutui/direcciones-content.tsx
+import { useFeedback } from "@/components/feedback/feedback-provider"
+import { useState } from "react"
+
+export default function DireccionesContent({ children }) {
+  const { showFeedback } = useFeedback()
+  const [direcciones, setDirecciones] = useState([])
+
+  const handleAdd = () => {
+    // Add logic here
+    showFeedback({ title: "Éxito", description: "Dirección agregada correctamente.", variant: "success" })
+  }
+
+  const handleEdit = () => {
+    // Edit logic here
+    showFeedback({ title: "Éxito", description: "Dirección actualizada correctamente.", variant: "success" })
+  }
+
+  const handleToggleStatus = (newStatus) => {
+    // Toggle status logic here
+    showFeedback({ title: "Éxito", description: `Estado de dirección actualizado a "${newStatus}".`, variant: "success" })
+  }
+
+  return (
+    <div>
+      {children}
+    </div>
+  )
+}
+
+// components/kokonutui/responsables-content.tsx
+import { useFeedback } from "@/components/feedback/feedback-provider"
+import { useState } from "react"
+
+export default function ResponsablesContent({ children }) {
+  const { showFeedback } = useFeedback()
+  const [responsables, setResponsables] = useState([])
+
+  const handleAdd = () => {
+    // Add logic here
+    showFeedback({ title: "Éxito", description: "Responsable agregado correctamente.", variant: "success" })
+  }
+
+  const handleEdit = () => {
+    // Edit logic here
+    showFeedback({ title: "Éxito", description: "Responsable actualizado correctamente.", variant: "success" })
+  }
+
+  const handleDelete = () => {
+    // Delete logic here
+    showFeedback({ title: "Éxito", description: "Responsable eliminado correctamente.", variant: "success" })
+  }
+
+  return (
+    <div>
+      {children}
+    </div>
+  )
+}
+
+// components/kokonutui/ubicaciones-content.tsx
+import { useFeedback } from "@/components/feedback/feedback-provider"
+import { useState } from "react"
+
+export default function UbicacionesContent({ children }) {
+  const { showFeedback } = useFeedback()
+  const [ubicaciones, setUbicaciones] = useState([])
+
+  const handleAdd = () => {
+    // Add logic here
+    showFeedback({ title: "Éxito", description: "Ubicación agregada correctamente.", variant: "success" })
+  }
+
+  const handleEdit = () => {
+    // Edit logic here
+    showFeedback({ title: "Éxito", description: "Ubicación actualizada correctamente.", variant: "success" })
+  }
+
+  const handleDelete = () => {
+    // Delete logic here
+    showFeedback({ title: "Éxito", description: "Ubicación eliminada correctamente.", variant: "success" })
+  }
+
+  return (
+    <div>
+      {children}
+    </div>
+  )
+}
+
+// components/kokonutui/estaciones-content.tsx
+import { useFeedback } from "@/components/feedback/feedback-provider"
+import { useState } from "react"
+
+export default function EstacionesContent({ children }) {
+  const { showFeedback } = useFeedback()
+  const [estaciones, setEstaciones] = useState([])
+
+  const handleAddEstacion = (data) => {
+    if (data.id) {
+      // Update logic here
+      showFeedback({ title: "Éxito", description: "Estación actualizada correctamente.", variant: "success" })
+    } else {
+      // Add logic here
+      showFeedback({ title: "Éxito", description: "Estación agregada correctamente.", variant: "success" })
+    }
+  }
+
+  const handleDelete = () => {
+    // Delete logic here
+    showFeedback({ title: "Éxito", description: "Estación eliminada correctamente.", variant: "success" })
+  }
+
+  return (
+    <div>
+      {children}
+    </div>
+  )
+}
