@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,52 +9,49 @@ import { PlusCircle, Edit, Trash2, Search, FolderOpen } from "lucide-react"
 import AddEstacionModal from "./add-estacion-modal"
 import ResguardosModal from "./resguardos-modal"
 import { useToast } from "@/components/ui/use-toast"
-import type { Estacion } from "@/lib/types" // Import Estacion type
-
-// Mock data for available CPUs and Monitors (should come from Equipos data)
-const MOCK_AVAILABLE_CPUS = [
-  { id: "EQ001", marca: "Dell", modelo: "OptiPlex 7010" },
-  { id: "EQ005", marca: "HP", modelo: "ProDesk 600 G1" },
-  { id: "EQ009", marca: "Acer", modelo: "Veriton X4640G" },
-]
-
-const MOCK_AVAILABLE_MONITORS = [
-  { id: "EQ002", marca: "HP", modelo: "EliteDisplay E231" },
-  { id: "EQ006", marca: "Samsung", modelo: "SyncMaster S24D300H" },
-  { id: "EQ010", marca: "LG", modelo: "24MP400-B" },
-]
-
-const initialEstaciones: Estacion[] = [
-  {
-    id: "EST001",
-    cpu: { id: "EQ001", marca: "Dell", modelo: "OptiPlex 7010" },
-    monitor: { id: "EQ002", marca: "HP", modelo: "EliteDisplay E231" },
-    responsable: "Dr. Juan Pérez",
-    servicio: "Urgencias",
-    ubicacion: "Edificio Principal, 1er Piso, Estación de Enfermería 1",
-    estado: "Activa",
-    accesorios: ["Cable de Red", "Mouse", "Teclado"],
-  },
-  {
-    id: "EST002",
-    cpu: { id: "EQ005", marca: "HP", modelo: "ProDesk 600 G1" },
-    monitor: { id: "EQ006", marca: "Samsung", modelo: "SyncMaster S24D300H" },
-    responsable: "Enf. María López",
-    servicio: "Laboratorio",
-    ubicacion: "Edificio Principal, 2do Piso, Área de Análisis Clínicos",
-    estado: "En Mantenimiento",
-    accesorios: ["Cable de Corriente", "Office (Licencia)"],
-  },
-]
+import { getPopulatedStations, getAvailableCPUs, getAvailableMonitors, deleteStation } from "@/lib/supabase/queries"
+import type { PopulatedEstacion } from "@/lib/types"
 
 export default function EstacionesContent() {
-  const [estaciones, setEstaciones] = useState<Estacion[]>(initialEstaciones)
+  const [estaciones, setEstaciones] = useState<PopulatedEstacion[]>([])
+  const [availableCPUs, setAvailableCPUs] = useState<{ id: string; marca: string; modelo: string }[]>([])
+  const [availableMonitors, setAvailableMonitors] = useState<{ id: string; marca: string; modelo: string }[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddEditEstacionModalOpen, setIsAddEditEstacionModalOpen] = useState(false)
-  const [editingEstacion, setEditingEstacion] = useState<Estacion | null>(null)
+  const [editingEstacion, setEditingEstacion] = useState<PopulatedEstacion | null>(null)
   const [isResguardosModalOpen, setIsResguardosModalOpen] = useState(false)
-  const [selectedStationForResguardos, setSelectedStationForResguardos] = useState<Estacion | null>(null) // Changed to full object
+  const [selectedStationForResguardos, setSelectedStationForResguardos] = useState<PopulatedEstacion | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const [estacionesData, cpusData, monitorsData] = await Promise.all([
+        getPopulatedStations(),
+        getAvailableCPUs(),
+        getAvailableMonitors(),
+      ])
+
+      if (estacionesData) setEstaciones(estacionesData)
+      if (cpusData) setAvailableCPUs(cpusData)
+      if (monitorsData) setAvailableMonitors(monitorsData)
+    } catch (error) {
+      console.error("Error loading data:", error)
+      toast({
+        title: "Error",
+        description: "Error al cargar los datos. Por favor, recarga la página.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredEstaciones = useMemo(() => {
     return estaciones.filter((estacion) =>
@@ -69,38 +66,34 @@ export default function EstacionesContent() {
     )
   }, [estaciones, searchTerm])
 
-  const handleAddEstacion = (newEstacion: Estacion) => {
-    setEstaciones((prevEstaciones) => {
-      // Check if it's an edit operation
-      const existingIndex = prevEstaciones.findIndex((e) => e.id === newEstacion.id)
-      if (existingIndex > -1) {
-        const updatedEstaciones = [...prevEstaciones]
-        updatedEstaciones[existingIndex] = newEstacion
-        toast({
-          title: "Éxito",
-          description: "Estación actualizada correctamente.",
-          variant: "success",
-        })
-        return updatedEstaciones
-      }
-      // Otherwise, it's a new station
-      toast({
-        title: "Éxito",
-        description: "Estación agregada correctamente.",
-        variant: "success",
-      })
-      return [...prevEstaciones, newEstacion]
+  const handleAddEstacion = async (newEstacion: any) => {
+    // Reload data after successful operation
+    await loadData()
+    toast({
+      title: "Éxito",
+      description: editingEstacion ? "Estación actualizada correctamente." : "Estación agregada correctamente.",
+      variant: "success",
     })
   }
 
-  const handleDelete = (id: string) => {
-    console.log(`Eliminar estación con ID: ${id}`)
-    setEstaciones(estaciones.filter((estacion) => estacion.id !== id))
-    toast({
-      title: "Éxito",
-      description: "Estación eliminada correctamente.",
-      variant: "success",
-    })
+  const handleDelete = async (id: string, displayId: string) => {
+    if (confirm(`¿Estás seguro de que quieres eliminar la estación ${displayId}?`)) {
+      const success = await deleteStation(id)
+      if (success) {
+        setEstaciones((prev) => prev.filter((estacion) => estacion.id !== id))
+        toast({
+          title: "Éxito",
+          description: "Estación eliminada correctamente.",
+          variant: "success",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Error al eliminar la estación.",
+          variant: "destructive",
+        })
+      }
+    }
   }
 
   const openAddModal = () => {
@@ -108,15 +101,28 @@ export default function EstacionesContent() {
     setIsAddEditEstacionModalOpen(true)
   }
 
-  const openEditModal = (estacion: Estacion) => {
+  const openEditModal = (estacion: PopulatedEstacion) => {
     setEditingEstacion(estacion)
     setIsAddEditEstacionModalOpen(true)
   }
 
-  const handleOpenResguardos = (estacion: Estacion) => {
-    // Changed to receive full station object
+  const handleOpenResguardos = (estacion: PopulatedEstacion) => {
     setSelectedStationForResguardos(estacion)
     setIsResguardosModalOpen(true)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestión de Estaciones</h1>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Cargando estaciones...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -149,6 +155,7 @@ export default function EstacionesContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID Estación</TableHead>
+                  <TableHead>Nombre</TableHead>
                   <TableHead>CPU (ID, Marca, Modelo)</TableHead>
                   <TableHead>Monitor (ID, Marca, Modelo)</TableHead>
                   <TableHead>Responsable</TableHead>
@@ -163,26 +170,31 @@ export default function EstacionesContent() {
               <TableBody>
                 {filteredEstaciones.map((estacion) => (
                   <TableRow key={estacion.id}>
-                    <TableCell className="font-medium">{estacion.id}</TableCell>
+                    <TableCell className="font-medium">{estacion.display_id}</TableCell>
+                    <TableCell>{estacion.name}</TableCell>
                     <TableCell>
-                      {estacion.cpu.id} ({estacion.cpu.marca} {estacion.cpu.modelo})
+                      {estacion.cpu.display_id} ({estacion.cpu.brand} {estacion.cpu.model})
                     </TableCell>
                     <TableCell>
-                      {estacion.monitor.id} ({estacion.monitor.marca} {estacion.monitor.modelo})
+                      {estacion.monitor.display_id} ({estacion.monitor.brand} {estacion.monitor.model})
                     </TableCell>
-                    <TableCell>{estacion.responsable}</TableCell>
-                    <TableCell>{estacion.servicio}</TableCell>
-                    <TableCell>{estacion.ubicacion}</TableCell>
-                    <TableCell>{estacion.estado}</TableCell>
+                    <TableCell>{estacion.current_responsible.full_name}</TableCell>
+                    <TableCell>{estacion.current_location.service_area}</TableCell>
                     <TableCell>
-                      {estacion.accesorios && estacion.accesorios.length > 0 ? estacion.accesorios.join(", ") : "N/A"}
+                      {`${estacion.current_location.building}, ${estacion.current_location.floor}, ${estacion.current_location.service_area}, ${estacion.current_location.internal_location}`}
+                    </TableCell>
+                    <TableCell>{estacion.station_status.name}</TableCell>
+                    <TableCell>
+                      {estacion.accessories && estacion.accessories.length > 0
+                        ? estacion.accessories.join(", ")
+                        : "N/A"}
                     </TableCell>
                     <TableCell className="text-center">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleOpenResguardos(estacion)} // Pass full station object
-                        aria-label={`Abrir resguardos para estación ${estacion.id}`}
+                        onClick={() => handleOpenResguardos(estacion)}
+                        aria-label={`Abrir resguardos para estación ${estacion.display_id}`}
                       >
                         <FolderOpen className="h-4 w-4 mr-2" />
                         Abrir
@@ -194,15 +206,15 @@ export default function EstacionesContent() {
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditModal(estacion)}
-                          aria-label={`Editar estación ${estacion.id}`}
+                          aria-label={`Editar estación ${estacion.display_id}`}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(estacion.id)}
-                          aria-label={`Eliminar estación ${estacion.id}`}
+                          onClick={() => handleDelete(estacion.id, estacion.display_id)}
+                          aria-label={`Eliminar estación ${estacion.display_id}`}
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
@@ -212,7 +224,7 @@ export default function EstacionesContent() {
                 ))}
                 {filteredEstaciones.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground">
                       No se encontraron estaciones.
                     </TableCell>
                   </TableRow>
@@ -227,15 +239,15 @@ export default function EstacionesContent() {
         isOpen={isAddEditEstacionModalOpen}
         onClose={() => setIsAddEditEstacionModalOpen(false)}
         onAddEstacion={handleAddEstacion}
-        availableCPUs={MOCK_AVAILABLE_CPUS}
-        availableMonitors={MOCK_AVAILABLE_MONITORS}
+        availableCPUs={availableCPUs}
+        availableMonitors={availableMonitors}
         initialData={editingEstacion}
       />
 
       <ResguardosModal
         isOpen={isResguardosModalOpen}
         onClose={() => setIsResguardosModalOpen(false)}
-        selectedItemData={selectedStationForResguardos} // Pass full station object
+        selectedItemData={selectedStationForResguardos}
       />
     </div>
   )

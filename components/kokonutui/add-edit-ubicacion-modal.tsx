@@ -5,23 +5,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PlusCircle, Save } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast" // Import useToast
-
-interface Ubicacion {
-  id: string
-  edificio: string
-  planta: string
-  servicio: string
-  ubicacionInterna: string
-}
+import { useToast } from "@/components/ui/use-toast"
+import type { LocationDB } from "@/lib/types"
 
 interface AddEditUbicacionModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (ubicacion: Omit<Ubicacion, "id"> | Ubicacion) => void
-  initialData?: Ubicacion | null
+  onSave: (ubicacion: Omit<LocationDB, "id" | "created_at" | "updated_at"> | LocationDB) => void
+  initialData?: LocationDB | null
 }
 
 // Mock Catalogs for Ubicaciones
@@ -29,28 +23,31 @@ const EDIFICIOS = ["Principal", "Anexo", "Consultorios Externos", "Maternidad"]
 const PLANTAS = ["Planta Baja", "1er Piso", "2do Piso", "3er Piso", "Sótano"]
 
 export default function AddEditUbicacionModal({ isOpen, onClose, onSave, initialData }: AddEditUbicacionModalProps) {
-  const [edificio, setEdificio] = useState(initialData?.edificio || "")
-  const [planta, setPlanta] = useState(initialData?.planta || "")
-  const [servicio, setServicio] = useState(initialData?.servicio || "")
-  const [ubicacionInterna, setUbicacionInterna] = useState(initialData?.ubicacionInterna || "")
-  const { toast } = useToast() // Initialize useToast
+  const [building, setBuilding] = useState(initialData?.building || "")
+  const [floor, setFloor] = useState(initialData?.floor || "")
+  const [serviceArea, setServiceArea] = useState(initialData?.service_area || "")
+  const [internalLocation, setInternalLocation] = useState(initialData?.internal_location || "")
+  const [description, setDescription] = useState(initialData?.description || "")
+  const { toast } = useToast()
 
   useEffect(() => {
     if (initialData) {
-      setEdificio(initialData.edificio)
-      setPlanta(initialData.planta)
-      setServicio(initialData.servicio)
-      setUbicacionInterna(initialData.ubicacionInterna)
+      setBuilding(initialData.building)
+      setFloor(initialData.floor)
+      setServiceArea(initialData.service_area)
+      setInternalLocation(initialData.internal_location)
+      setDescription(initialData.description || "")
     } else {
-      setEdificio("")
-      setPlanta("")
-      setServicio("")
-      setUbicacionInterna("")
+      setBuilding("")
+      setFloor("")
+      setServiceArea("")
+      setInternalLocation("")
+      setDescription("")
     }
   }, [initialData, isOpen])
 
   const handleSubmit = () => {
-    if (!edificio || !planta || !servicio.trim() || !ubicacionInterna.trim()) {
+    if (!building || !floor || !serviceArea.trim() || !internalLocation.trim()) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios.",
@@ -59,17 +56,25 @@ export default function AddEditUbicacionModal({ isOpen, onClose, onSave, initial
       return
     }
 
-    const newOrUpdatedUbicacion: Ubicacion | Omit<Ubicacion, "id"> = initialData
-      ? { ...initialData, edificio, planta, servicio, ubicacionInterna }
-      : { edificio, planta, servicio, ubicacionInterna }
+    const ubicacionData = initialData
+      ? {
+          ...initialData,
+          building,
+          floor,
+          service_area: serviceArea,
+          internal_location: internalLocation,
+          description: description || undefined,
+        }
+      : {
+          building,
+          floor,
+          service_area: serviceArea,
+          internal_location: internalLocation,
+          description: description || undefined,
+        }
 
-    onSave(newOrUpdatedUbicacion)
+    onSave(ubicacionData)
     onClose()
-    toast({
-      title: "Éxito",
-      description: initialData ? "Ubicación actualizada correctamente." : "Ubicación agregada correctamente.",
-      variant: "success",
-    })
   }
 
   return (
@@ -80,10 +85,10 @@ export default function AddEditUbicacionModal({ isOpen, onClose, onSave, initial
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edificio" className="text-right">
+            <Label htmlFor="building" className="text-right">
               Edificio
             </Label>
-            <Select onValueChange={setEdificio} value={edificio}>
+            <Select onValueChange={setBuilding} value={building}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Selecciona un edificio" />
               </SelectTrigger>
@@ -97,10 +102,10 @@ export default function AddEditUbicacionModal({ isOpen, onClose, onSave, initial
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="planta" className="text-right">
+            <Label htmlFor="floor" className="text-right">
               Planta
             </Label>
-            <Select onValueChange={setPlanta} value={planta}>
+            <Select onValueChange={setFloor} value={floor}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Selecciona una planta" />
               </SelectTrigger>
@@ -114,27 +119,39 @@ export default function AddEditUbicacionModal({ isOpen, onClose, onSave, initial
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="servicio" className="text-right">
+            <Label htmlFor="serviceArea" className="text-right">
               Servicio
             </Label>
             <Input
-              id="servicio"
-              value={servicio}
-              onChange={(e) => setServicio(e.target.value)}
+              id="serviceArea"
+              value={serviceArea}
+              onChange={(e) => setServiceArea(e.target.value)}
               className="col-span-3"
               required
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="ubicacionInterna" className="text-right">
+            <Label htmlFor="internalLocation" className="text-right">
               Ubicación Interna
             </Label>
             <Input
-              id="ubicacionInterna"
-              value={ubicacionInterna}
-              onChange={(e) => setUbicacionInterna(e.target.value)}
+              id="internalLocation"
+              value={internalLocation}
+              onChange={(e) => setInternalLocation(e.target.value)}
               className="col-span-3"
               required
+            />
+          </div>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="description" className="text-right">
+              Descripción
+            </Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="col-span-3 min-h-[80px]"
+              placeholder="Descripción opcional..."
             />
           </div>
         </div>

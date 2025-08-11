@@ -1,100 +1,112 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusCircle, Edit, Trash2, Search } from "lucide-react"
-import AddEditUbicacionModal from "./add-edit-ubicacion-modal" // Import the new modal
-import { useToast } from "@/components/ui/use-toast" // Import useToast
-
-interface Ubicacion {
-  id: string
-  edificio: string
-  planta: string
-  servicio: string
-  ubicacionInterna: string
-}
-
-const initialUbicaciones: Ubicacion[] = [
-  {
-    id: "UB001",
-    edificio: "Principal",
-    planta: "1er Piso",
-    servicio: "Urgencias",
-    ubicacionInterna: "Estación de Enfermería 1",
-  },
-  {
-    id: "UB002",
-    edificio: "Principal",
-    planta: "2do Piso",
-    servicio: "Laboratorio",
-    ubicacionInterna: "Área de Análisis Clínicos",
-  },
-  {
-    id: "UB003",
-    edificio: "Anexo",
-    planta: "Planta Baja",
-    servicio: "Administración",
-    ubicacionInterna: "Oficina de Gerencia",
-  },
-  {
-    id: "UB004",
-    edificio: "Principal",
-    planta: "3er Piso",
-    servicio: "Radiología",
-    ubicacionInterna: "Sala de Rayos X 2",
-  },
-  {
-    id: "UB005",
-    edificio: "Principal",
-    planta: "1er Piso",
-    servicio: "Farmacia",
-    ubicacionInterna: "Mostrador Principal",
-  },
-]
+import AddEditUbicacionModal from "./add-edit-ubicacion-modal"
+import { useToast } from "@/components/ui/use-toast"
+import { getLocations, insertLocation, updateLocation, deleteLocation } from "@/lib/supabase/queries"
+import type { LocationDB } from "@/lib/types"
 
 export default function UbicacionesContent() {
-  const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>(initialUbicaciones)
+  const [ubicaciones, setUbicaciones] = useState<LocationDB[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingUbicacion, setEditingUbicacion] = useState<Ubicacion | null>(null)
-  const { toast } = useToast() // Initialize useToast
+  const [editingUbicacion, setEditingUbicacion] = useState<LocationDB | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const data = await getLocations()
+      if (data) {
+        setUbicaciones(data)
+      }
+    } catch (error) {
+      console.error("Error loading locations:", error)
+      toast({
+        title: "Error",
+        description: "Error al cargar las ubicaciones. Por favor, recarga la página.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredUbicaciones = ubicaciones.filter((ubicacion) =>
     Object.values(ubicacion).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase())),
   )
 
-  const handleAddUbicacion = (newUbicacion: Omit<Ubicacion, "id">) => {
-    const newId = `UB${Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")}`
-    setUbicaciones((prev) => [...prev, { ...newUbicacion, id: newId }])
-    toast({
-      title: "Éxito",
-      description: "Ubicación agregada correctamente.",
-      variant: "success",
-    })
+  const handleAddUbicacion = async (newUbicacionData: Omit<LocationDB, "id" | "created_at" | "updated_at">) => {
+    const result = await insertLocation(newUbicacionData)
+    if (result) {
+      await loadData() // Reload data to get the latest
+      toast({
+        title: "Éxito",
+        description: "Ubicación agregada correctamente.",
+        variant: "success",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Error al agregar la ubicación.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleEditUbicacion = (updatedUbicacion: Ubicacion) => {
-    setUbicaciones((prev) => prev.map((ub) => (ub.id === updatedUbicacion.id ? updatedUbicacion : ub)))
-    toast({
-      title: "Éxito",
-      description: "Ubicación actualizada correctamente.",
-      variant: "success",
+  const handleEditUbicacion = async (updatedUbicacionData: LocationDB) => {
+    const result = await updateLocation(updatedUbicacionData.id, {
+      building: updatedUbicacionData.building,
+      floor: updatedUbicacionData.floor,
+      service_area: updatedUbicacionData.service_area,
+      internal_location: updatedUbicacionData.internal_location,
+      description: updatedUbicacionData.description,
     })
+    if (result) {
+      await loadData() // Reload data to get the latest
+      toast({
+        title: "Éxito",
+        description: "Ubicación actualizada correctamente.",
+        variant: "success",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Error al actualizar la ubicación.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDelete = (id: string) => {
-    console.log(`Eliminar ubicación con ID: ${id}`)
-    setUbicaciones(ubicaciones.filter((ubicacion) => ubicacion.id !== id))
-    toast({
-      title: "Éxito",
-      description: "Ubicación eliminada correctamente.",
-      variant: "success",
-    })
+  const handleDelete = async (id: string, locationName: string) => {
+    if (confirm(`¿Estás seguro de que quieres eliminar la ubicación ${locationName}?`)) {
+      const success = await deleteLocation(id)
+      if (success) {
+        setUbicaciones((prev) => prev.filter((ubicacion) => ubicacion.id !== id))
+        toast({
+          title: "Éxito",
+          description: "Ubicación eliminada correctamente.",
+          variant: "success",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Error al eliminar la ubicación.",
+          variant: "destructive",
+        })
+      }
+    }
   }
 
   const openAddModal = () => {
@@ -102,9 +114,23 @@ export default function UbicacionesContent() {
     setIsModalOpen(true)
   }
 
-  const openEditModal = (ubicacion: Ubicacion) => {
+  const openEditModal = (ubicacion: LocationDB) => {
     setEditingUbicacion(ubicacion)
     setIsModalOpen(true)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestión de Ubicaciones</h1>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Cargando ubicaciones...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -135,42 +161,37 @@ export default function UbicacionesContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
                   <TableHead>Edificio</TableHead>
                   <TableHead>Planta</TableHead>
                   <TableHead>Servicio</TableHead>
                   <TableHead>Ubicación Interna</TableHead>
+                  <TableHead>Descripción</TableHead>
                   <TableHead className="text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUbicaciones.map((ubicacion) => (
                   <TableRow key={ubicacion.id}>
-                    <TableCell className="font-medium">{ubicacion.id}</TableCell>
-                    {/* */}
-                    <TableCell>{ubicacion.edificio}</TableCell>
-                    {/* */}
-                    <TableCell>{ubicacion.planta}</TableCell>
-                    {/* */}
-                    <TableCell>{ubicacion.servicio}</TableCell>
-                    {/* */}
-                    <TableCell>{ubicacion.ubicacionInterna}</TableCell>
-                    {/* */}
+                    <TableCell className="font-medium">{ubicacion.building}</TableCell>
+                    <TableCell>{ubicacion.floor}</TableCell>
+                    <TableCell>{ubicacion.service_area}</TableCell>
+                    <TableCell>{ubicacion.internal_location}</TableCell>
+                    <TableCell>{ubicacion.description || "N/A"}</TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center space-x-2">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditModal(ubicacion)}
-                          aria-label={`Editar ${ubicacion.ubicacionInterna}`}
+                          aria-label={`Editar ${ubicacion.internal_location}`}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(ubicacion.id)}
-                          aria-label={`Eliminar ${ubicacion.ubicacionInterna}`}
+                          onClick={() => handleDelete(ubicacion.id, ubicacion.internal_location)}
+                          aria-label={`Eliminar ${ubicacion.internal_location}`}
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>

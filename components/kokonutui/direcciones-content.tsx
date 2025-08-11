@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,59 +8,44 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PlusCircle, Edit, ToggleRight, ToggleLeft, Search } from "lucide-react"
 import AddEditDireccionModal from "./add-edit-direccion-modal"
 import { useToast } from "@/components/ui/use-toast"
-
-// Datos simulados
-const MOCK_DIRECCIONES = [
-  {
-    id: "1",
-    name: "Dirección General",
-    description: "Dirección administrativa principal del hospital",
-    status: "Activa" as const,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Dirección Médica",
-    description: "Dirección encargada de los servicios médicos",
-    status: "Activa" as const,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    name: "Dirección de Enfermería",
-    description: "Dirección del personal de enfermería",
-    status: "Activa" as const,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "4",
-    name: "Dirección de Recursos Humanos",
-    description: "Gestión del personal del hospital",
-    status: "Inactiva" as const,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-]
-
-interface AdministrativeDepartmentDB {
-  id: string
-  name: string
-  description: string
-  status: "Activa" | "Inactiva"
-  created_at: string
-  updated_at: string
-}
+import {
+  getAdministrativeDepartments,
+  insertAdministrativeDepartment,
+  updateAdministrativeDepartment,
+} from "@/lib/supabase/queries"
+import type { AdministrativeDepartmentDB } from "@/lib/types"
 
 export default function DireccionesContent() {
-  const [direcciones, setDirecciones] = useState<AdministrativeDepartmentDB[]>(MOCK_DIRECCIONES)
+  const [direcciones, setDirecciones] = useState<AdministrativeDepartmentDB[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDireccion, setEditingDireccion] = useState<AdministrativeDepartmentDB | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const data = await getAdministrativeDepartments()
+      if (data) {
+        setDirecciones(data)
+      }
+    } catch (error) {
+      console.error("Error loading administrative departments:", error)
+      toast({
+        title: "Error",
+        description: "Error al cargar las direcciones. Por favor, recarga la página.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredDirecciones = useMemo(() => {
     return direcciones.filter((direccion) =>
@@ -71,44 +56,62 @@ export default function DireccionesContent() {
   const handleAddDireccion = async (
     newDireccionData: Omit<AdministrativeDepartmentDB, "id" | "created_at" | "updated_at">,
   ) => {
-    const newDireccion: AdministrativeDepartmentDB = {
-      ...newDireccionData,
-      id: (direcciones.length + 1).toString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    const result = await insertAdministrativeDepartment(newDireccionData)
+    if (result) {
+      await loadData() // Reload data to get the latest
+      toast({
+        title: "Éxito",
+        description: "Dirección agregada correctamente.",
+        variant: "default",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Error al agregar la dirección.",
+        variant: "destructive",
+      })
     }
-
-    setDirecciones((prev) => [...prev, newDireccion])
-    toast({
-      title: "Éxito",
-      description: "Dirección agregada correctamente.",
-      variant: "default",
-    })
   }
 
   const handleEditDireccion = async (updatedDireccionData: AdministrativeDepartmentDB) => {
-    setDirecciones((prev) =>
-      prev.map((dir) =>
-        dir.id === updatedDireccionData.id ? { ...updatedDireccionData, updated_at: new Date().toISOString() } : dir,
-      ),
-    )
-    toast({
-      title: "Éxito",
-      description: "Dirección actualizada correctamente.",
-      variant: "default",
+    const result = await updateAdministrativeDepartment(updatedDireccionData.id, {
+      name: updatedDireccionData.name,
+      description: updatedDireccionData.description,
+      status: updatedDireccionData.status,
     })
+    if (result) {
+      await loadData() // Reload data to get the latest
+      toast({
+        title: "Éxito",
+        description: "Dirección actualizada correctamente.",
+        variant: "default",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Error al actualizar la dirección.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleToggleStatus = async (id: string, currentStatus: "Activa" | "Inactiva") => {
     const newStatus = currentStatus === "Activa" ? "Inactiva" : "Activa"
-    setDirecciones((prev) =>
-      prev.map((dir) => (dir.id === id ? { ...dir, status: newStatus, updated_at: new Date().toISOString() } : dir)),
-    )
-    toast({
-      title: "Éxito",
-      description: `Estado de dirección actualizado a "${newStatus}".`,
-      variant: "default",
-    })
+    const result = await updateAdministrativeDepartment(id, { status: newStatus })
+    if (result) {
+      setDirecciones((prev) => prev.map((dir) => (dir.id === id ? { ...dir, status: newStatus } : dir)))
+      toast({
+        title: "Éxito",
+        description: `Estado de dirección actualizado a "${newStatus}".`,
+        variant: "default",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Error al actualizar el estado de la dirección.",
+        variant: "destructive",
+      })
+    }
   }
 
   const openAddModal = () => {
@@ -119,6 +122,20 @@ export default function DireccionesContent() {
   const openEditModal = (direccion: AdministrativeDepartmentDB) => {
     setEditingDireccion(direccion)
     setIsModalOpen(true)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestión de Direcciones Administrativas</h1>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Cargando direcciones...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -149,7 +166,6 @@ export default function DireccionesContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead>Estado</TableHead>
@@ -159,8 +175,7 @@ export default function DireccionesContent() {
               <TableBody>
                 {filteredDirecciones.map((direccion) => (
                   <TableRow key={direccion.id}>
-                    <TableCell className="font-medium">{direccion.id}</TableCell>
-                    <TableCell>{direccion.name}</TableCell>
+                    <TableCell className="font-medium">{direccion.name}</TableCell>
                     <TableCell>{direccion.description}</TableCell>
                     <TableCell>
                       <span
@@ -203,7 +218,7 @@ export default function DireccionesContent() {
                 ))}
                 {filteredDirecciones.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
                       No se encontraron direcciones.
                     </TableCell>
                   </TableRow>

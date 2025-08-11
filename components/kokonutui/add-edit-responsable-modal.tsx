@@ -6,21 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PlusCircle, Save } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast" // Import useToast
-
-interface Responsable {
-  id: string
-  nombreCompleto: string
-  telefono?: string
-  correo?: string
-  estacionEquipoAsignado?: string // This field is for display, not edited here
-}
+import { useToast } from "@/components/ui/use-toast"
+import type { ResponsableDB } from "@/lib/types"
 
 interface AddEditResponsableModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (responsable: Omit<Responsable, "id" | "estacionEquipoAsignado"> | Responsable) => void
-  initialData?: Responsable | null
+  onSave: (responsable: Omit<ResponsableDB, "id" | "created_at" | "updated_at"> | ResponsableDB) => void
+  initialData?: ResponsableDB | null
 }
 
 export default function AddEditResponsableModal({
@@ -29,25 +22,25 @@ export default function AddEditResponsableModal({
   onSave,
   initialData,
 }: AddEditResponsableModalProps) {
-  const [nombreCompleto, setNombreCompleto] = useState(initialData?.nombreCompleto || "")
-  const [telefono, setTelefono] = useState(initialData?.telefono || "")
-  const [correo, setCorreo] = useState(initialData?.correo || "")
-  const { toast } = useToast() // Initialize useToast
+  const [fullName, setFullName] = useState(initialData?.full_name || "")
+  const [phone, setPhone] = useState(initialData?.phone || "")
+  const [email, setEmail] = useState(initialData?.email || "")
+  const { toast } = useToast()
 
   useEffect(() => {
     if (initialData) {
-      setNombreCompleto(initialData.nombreCompleto)
-      setTelefono(initialData.telefono || "")
-      setCorreo(initialData.correo || "")
+      setFullName(initialData.full_name)
+      setPhone(initialData.phone || "")
+      setEmail(initialData.email || "")
     } else {
-      setNombreCompleto("")
-      setTelefono("")
-      setCorreo("")
+      setFullName("")
+      setPhone("")
+      setEmail("")
     }
   }, [initialData, isOpen])
 
   const handleSubmit = () => {
-    if (!nombreCompleto.trim()) {
+    if (!fullName.trim()) {
       toast({
         title: "Error",
         description: "El nombre completo es obligatorio.",
@@ -56,17 +49,12 @@ export default function AddEditResponsableModal({
       return
     }
 
-    const newOrUpdatedResponsable: Responsable | Omit<Responsable, "id" | "estacionEquipoAsignado"> = initialData
-      ? { ...initialData, nombreCompleto, telefono, correo }
-      : { nombreCompleto, telefono, correo }
+    const responsableData = initialData
+      ? { ...initialData, full_name: fullName, phone: phone || undefined, email: email || undefined }
+      : { full_name: fullName, phone: phone || undefined, email: email || undefined }
 
-    onSave(newOrUpdatedResponsable)
+    onSave(responsableData)
     onClose()
-    toast({
-      title: "Éxito",
-      description: initialData ? "Responsable actualizado correctamente." : "Responsable agregado correctamente.",
-      variant: "success",
-    })
   }
 
   return (
@@ -77,37 +65,37 @@ export default function AddEditResponsableModal({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="nombreCompleto" className="text-right">
+            <Label htmlFor="fullName" className="text-right">
               Nombre Completo
             </Label>
             <Input
-              id="nombreCompleto"
-              value={nombreCompleto}
-              onChange={(e) => setNombreCompleto(e.target.value)}
+              id="fullName"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
               className="col-span-3"
               required
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="telefono" className="text-right">
+            <Label htmlFor="phone" className="text-right">
               Teléfono
             </Label>
             <Input
-              id="telefono"
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="col-span-3"
               type="tel"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="correo" className="text-right">
+            <Label htmlFor="email" className="text-right">
               Correo
             </Label>
             <Input
-              id="correo"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="col-span-3"
               type="email"
             />

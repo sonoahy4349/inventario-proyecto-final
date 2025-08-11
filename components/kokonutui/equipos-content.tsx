@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,290 +10,66 @@ import { cn } from "@/lib/utils"
 import AddEquipoModal from "./add-equipo-modal"
 import ResguardosModal from "./resguardos-modal"
 import { useToast } from "@/components/ui/use-toast"
-
-// Datos simulados
-const MOCK_EQUIPMENT_TYPES = [
-  {
-    id: "1",
-    name: "CPU",
-    description: "Unidad Central de Procesamiento",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Monitor",
-    description: "Monitor de computadora",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    name: "Laptop",
-    description: "Computadora portátil",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "4",
-    name: "Impresora",
-    description: "Impresora",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-]
-
-const MOCK_EQUIPMENT_STATUSES = [
-  {
-    id: "1",
-    name: "Activo",
-    description: "Equipo en funcionamiento",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    name: "En Reparación",
-    description: "Equipo en mantenimiento",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    name: "De Baja",
-    description: "Equipo dado de baja",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "4",
-    name: "Disponible",
-    description: "Equipo disponible para asignación",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-]
-
-const MOCK_LOCATIONS = [
-  {
-    id: "0",
-    building: "Edificio Principal",
-    floor: "Planta Baja",
-    service_area: "Almacén TI",
-    internal_location: "Almacén Principal",
-    description: "Almacén de Tecnologías de la Información",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "1",
-    building: "Edificio A",
-    floor: "Planta Baja",
-    service_area: "Urgencias",
-    internal_location: "Consultorio 1",
-    description: "Consultorio de urgencias",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    building: "Edificio A",
-    floor: "Primer Piso",
-    service_area: "Laboratorio",
-    internal_location: "Lab Principal",
-    description: "Laboratorio principal",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    building: "Edificio B",
-    floor: "Segundo Piso",
-    service_area: "Administración",
-    internal_location: "Oficina 201",
-    description: "Oficina administrativa",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-]
-
-const MOCK_RESPONSABLES = [
-  {
-    id: "0",
-    full_name: "N/A",
-    phone: null,
-    email: null,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "1",
-    full_name: "Dr. Juan Pérez",
-    phone: "555-0001",
-    email: "juan.perez@hospital.com",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    full_name: "Lic. María García",
-    phone: "555-0002",
-    email: "maria.garcia@hospital.com",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    full_name: "Ing. Carlos López",
-    phone: "555-0003",
-    email: "carlos.lopez@hospital.com",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-]
-
-const MOCK_EQUIPOS = [
-  {
-    id: "1",
-    display_id: "CPU001",
-    brand: "Dell",
-    model: "OptiPlex 7090",
-    serial_number: "DL123456789",
-    equipment_type: MOCK_EQUIPMENT_TYPES[0],
-    current_status: MOCK_EQUIPMENT_STATUSES[0],
-    current_location: MOCK_LOCATIONS[1],
-    current_responsible: MOCK_RESPONSABLES[1],
-    assigned_station: null,
-    printer_details: null,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    display_id: "MON001",
-    brand: "Samsung",
-    model: "24 inch LED",
-    serial_number: "SM987654321",
-    equipment_type: MOCK_EQUIPMENT_TYPES[1],
-    current_status: MOCK_EQUIPMENT_STATUSES[0],
-    current_location: MOCK_LOCATIONS[1],
-    current_responsible: MOCK_RESPONSABLES[1],
-    assigned_station: null,
-    printer_details: null,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    display_id: "LAP001",
-    brand: "HP",
-    model: "EliteBook 840",
-    serial_number: "HP456789123",
-    equipment_type: MOCK_EQUIPMENT_TYPES[2],
-    current_status: MOCK_EQUIPMENT_STATUSES[0],
-    current_location: MOCK_LOCATIONS[2],
-    current_responsible: MOCK_RESPONSABLES[2],
-    assigned_station: null,
-    printer_details: null,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "4",
-    display_id: "IMP001",
-    brand: "Epson",
-    model: "EcoTank L3250",
-    serial_number: "EP789123456",
-    equipment_type: MOCK_EQUIPMENT_TYPES[3],
-    current_status: MOCK_EQUIPMENT_STATUSES[0],
-    current_location: MOCK_LOCATIONS[3],
-    current_responsible: MOCK_RESPONSABLES[3],
-    assigned_station: null,
-    printer_details: {
-      equipment_id: "4",
-      profile: "Color",
-      printer_type: "Inyección de Tinta",
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-]
-
-interface EquipmentTypeDB {
-  id: string
-  name: string
-  description?: string
-  created_at: string
-  updated_at: string
-}
-
-interface EquipmentStatusDB {
-  id: string
-  name: string
-  description?: string
-  created_at: string
-  updated_at: string
-}
-
-interface LocationDB {
-  id: string
-  building: string
-  floor: string
-  service_area: string
-  internal_location: string
-  description?: string
-  created_at: string
-  updated_at: string
-}
-
-interface ResponsableDB {
-  id: string
-  full_name: string
-  phone?: string
-  email?: string
-  created_at: string
-  updated_at: string
-}
-
-interface PrinterDetailsDB {
-  equipment_id: string
-  profile?: string
-  printer_type?: string
-  created_at: string
-  updated_at: string
-}
-
-interface PopulatedEquipo {
-  id: string
-  display_id: string
-  brand: string
-  model: string
-  serial_number: string
-  equipment_type: EquipmentTypeDB
-  current_status: EquipmentStatusDB
-  current_location: LocationDB
-  current_responsible?: ResponsableDB
-  assigned_station?: { display_id: string } | null
-  printer_details?: PrinterDetailsDB | null
-  created_at: string
-  updated_at: string
-}
+import {
+  getPopulatedEquipos,
+  getEquipmentTypes,
+  getEquipmentStatuses,
+  getLocations,
+  getResponsables,
+  deleteEquipo,
+} from "@/lib/supabase/queries"
+import type { PopulatedEquipo, EquipmentTypeDB, EquipmentStatusDB, LocationDB, ResponsableDB } from "@/lib/types"
 
 type FilterTab = "todos" | "cpu_monitor" | "laptop" | "impresora"
 
 export default function EquiposContent() {
-  const [equipos, setEquipos] = useState<PopulatedEquipo[]>(MOCK_EQUIPOS)
+  const [equipos, setEquipos] = useState<PopulatedEquipo[]>([])
+  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentTypeDB[]>([])
+  const [equipmentStatuses, setEquipmentStatuses] = useState<EquipmentStatusDB[]>([])
+  const [locations, setLocations] = useState<LocationDB[]>([])
+  const [responsables, setResponsables] = useState<ResponsableDB[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<FilterTab>("todos")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isResguardosModalOpen, setIsResguardosModalOpen] = useState(false)
   const [selectedItemForResguardos, setSelectedItemForResguardos] = useState<PopulatedEquipo | null>(null)
   const [editingEquipo, setEditingEquipo] = useState<PopulatedEquipo | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   const { toast } = useToast()
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const [equiposData, typesData, statusesData, locationsData, responsablesData] = await Promise.all([
+        getPopulatedEquipos(),
+        getEquipmentTypes(),
+        getEquipmentStatuses(),
+        getLocations(),
+        getResponsables(),
+      ])
+
+      if (equiposData) setEquipos(equiposData)
+      if (typesData) setEquipmentTypes(typesData)
+      if (statusesData) setEquipmentStatuses(statusesData)
+      if (locationsData) setLocations(locationsData)
+      if (responsablesData) setResponsables(responsablesData)
+    } catch (error) {
+      console.error("Error loading data:", error)
+      toast({
+        title: "Error",
+        description: "Error al cargar los datos. Por favor, recarga la página.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredEquipos = useMemo(() => {
     let currentEquipos = equipos
@@ -371,7 +147,7 @@ export default function EquiposContent() {
       case "Estado":
         return equipo.current_status?.name || "N/A"
       case "Estación Asignada":
-        return equipo.assigned_station?.display_id || "N/A"
+        return equipo.assigned_station?.id || "N/A"
       case "Responsable":
         return equipo.current_responsible?.full_name || "N/A"
       case "Ubicación":
@@ -435,89 +211,32 @@ export default function EquiposContent() {
 
   const handleDelete = async (id: string, displayId: string) => {
     if (confirm(`¿Estás seguro de que quieres eliminar el equipo ${displayId}?`)) {
-      setEquipos((prev) => prev.filter((equipo) => equipo.id !== id))
-      toast({
-        title: "Éxito",
-        description: `Equipo ${displayId} eliminado correctamente.`,
-        variant: "default",
-      })
+      const success = await deleteEquipo(id)
+      if (success) {
+        setEquipos((prev) => prev.filter((equipo) => equipo.id !== id))
+        toast({
+          title: "Éxito",
+          description: `Equipo ${displayId} eliminado correctamente.`,
+          variant: "default",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Error al eliminar el equipo.",
+          variant: "destructive",
+        })
+      }
     }
   }
 
   const handleAddOrUpdateEquipo = async (equipoData: any) => {
-    const {
-      id,
-      display_id,
-      tipo,
-      marca,
-      modelo,
-      noSerie,
-      estado,
-      responsable,
-      ubicacion,
-      servicio,
-      estacionAsignada,
-      tipoImpresora,
-      perfil,
-    } = equipoData
-
-    // Find objects for selected names
-    const equipmentType = MOCK_EQUIPMENT_TYPES.find((t) => t.name === tipo)
-    const status = MOCK_EQUIPMENT_STATUSES.find((s) => s.name === estado)
-    const location = MOCK_LOCATIONS.find(
-      (l) => `${l.building}, ${l.floor}, ${l.service_area}, ${l.internal_location}` === ubicacion,
-    )
-    const responsible = MOCK_RESPONSABLES.find((r) => r.full_name === responsable)
-
-    if (!equipmentType || !status || !location) {
-      toast({
-        title: "Error de datos",
-        description: "No se pudieron encontrar los datos seleccionados.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const newEquipo: PopulatedEquipo = {
-      id: editingEquipo ? editingEquipo.id : (equipos.length + 1).toString(),
-      display_id: display_id,
-      brand: marca,
-      model: modelo,
-      serial_number: noSerie,
-      equipment_type: equipmentType,
-      current_status: status,
-      current_location: location,
-      current_responsible: responsible,
-      assigned_station: null,
-      printer_details:
-        tipo === "Impresora"
-          ? {
-              equipment_id: editingEquipo ? editingEquipo.id : (equipos.length + 1).toString(),
-              profile: perfil,
-              printer_type: tipoImpresora,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-          : null,
-      created_at: editingEquipo ? editingEquipo.created_at : new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    if (editingEquipo) {
-      setEquipos((prev) => prev.map((equipo) => (equipo.id === editingEquipo.id ? newEquipo : equipo)))
-      toast({
-        title: "Éxito",
-        description: "Equipo actualizado correctamente.",
-        variant: "default",
-      })
-    } else {
-      setEquipos((prev) => [...prev, newEquipo])
-      toast({
-        title: "Éxito",
-        description: "Equipo agregado correctamente.",
-        variant: "default",
-      })
-    }
+    // Reload data after successful operation
+    await loadData()
+    toast({
+      title: "Éxito",
+      description: editingEquipo ? "Equipo actualizado correctamente." : "Equipo agregado correctamente.",
+      variant: "default",
+    })
   }
 
   const handleOpenResguardos = (item: PopulatedEquipo) => {
@@ -526,6 +245,20 @@ export default function EquiposContent() {
   }
 
   const headers = getTableHeaders()
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventario</h1>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Cargando equipos...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -622,10 +355,10 @@ export default function EquiposContent() {
         }}
         onSave={handleAddOrUpdateEquipo}
         initialData={editingEquipo}
-        equipmentTypes={MOCK_EQUIPMENT_TYPES}
-        equipmentStatuses={MOCK_EQUIPMENT_STATUSES}
-        locations={MOCK_LOCATIONS}
-        responsables={MOCK_RESPONSABLES}
+        equipmentTypes={equipmentTypes}
+        equipmentStatuses={equipmentStatuses}
+        locations={locations}
+        responsables={responsables}
       />
       <ResguardosModal
         isOpen={isResguardosModalOpen}
